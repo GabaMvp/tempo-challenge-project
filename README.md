@@ -54,117 +54,116 @@ markdown
 
 ## Part 1: Debugging
 
-### Issue 1: Hero Section não exibe conteúdo do slot
+Issue 1: Hero Section não exibe conteúdo do slot
 
-**Resposta ao Cliente:**
+Resposta ao Cliente:
 
 Olá,
 
 Investiguei a implementação da seção Hero e identifiquei a causa do problema.
 
-**O que está acontecendo:**
+O que está acontecendo:
 
-O componente `CroctProvider` no arquivo `layout.tsx` está sem a propriedade `appId`. Essa é a informação que autentica suas requisições e conecta sua aplicação ao seu workspace na Croct. Sem ela, a plataforma não consegue localizar seus slots e retorna o erro "resource not found" no console.
+O componente CroctProvider, no arquivo layout.tsx, está sem a propriedade appId. Essa informação é necessária para identificar a aplicação e permitir que a integração se comunique corretamente com o workspace da Croct.
 
-**Causa raiz:**
+Sem o appId configurado, a aplicação não consegue acessar corretamente os recursos esperados, resultando no erro resource not found no console.
 
+Causa raiz:
 
-// Código com problema
-<CroctProvider>
-  {children}
-</CroctProvider>
+O CroctProvider foi configurado sem o appId.
+
 Como resolver:
 
-Adicione o appId ao CroctProvider no seu layout:
+Adicione o appId ao CroctProvider no arquivo layout.tsx:
 
-// Código corrigido
-<CroctProvider appId="SEU_APP_ID_AQUI">
+<CroctProvider appId={SEU__AppID}>
   {children}
 </CroctProvider>
-Você encontra seu appId no painel da Croct em Settings → Applications.
 
-Após essa alteração, a seção Hero passará a exibir o conteúdo configurado no slot.
+O valor do appId pode ser obtido no painel da Croct, na configuração da aplicação.
+
+Após essa alteração, a integração irá identificar corretamente a aplicação e o conteúdo configurado para o Hero poderá ser carregado.
 
 # Issue 2: Features — Cards, tagline e description atualizam, mas o título não.
 Resposta ao Cliente:
 
 Olá,
 
-Analisei o componente FeaturesSection e identifiquei a causa do problema.
+Analisei o componente FeaturesSection e identifiquei que o código está solicitando explicitamente a versão @2 do slot:
 
-O que está acontecendo:
+const { content } = await fetchContent('features-section@2');
 
-Você está usando fetchContent('features-section@2'), que busca especificamente a versão 2 do slot. Quando você publica atualizações no painel da Croct, a versão do slot é incrementada automaticamente (vira @3, @4, etc.). Seu código continua "preso" na versão 2, mostrando conteúdo desatualizado para o título.
+Isso significa que a aplicação continuará consumindo essa versão específica, mesmo quando uma versão mais recente for publicada no painel da Croct.
 
-Por que cards e descrição funcionam?
-Provavelmente porque a estrutura do JSON não mudou significativamente entre as versões para esses campos, mas o campo title foi alterado na versão mais recente.
+Por isso, alterações realizadas nas versões posteriores não serão necessariamente refletidas pela aplicação.
 
 Como resolver:
 
-Use a versão mais recente automaticamente, trocando @2 por @latest:
+Se a intenção é sempre utilizar a versão mais recente publicada, altere a referência para:
 
+const { content } = await fetchContent('features-section@latest');
 
-// De:
-const {content} = await fetchContent('features-section@2');
+Dessa forma, a aplicação passa a consumir a versão mais recente do slot sem precisar alterar o código a cada nova publicação.
 
-// Para:
-const {content} = await fetchContent('features-section@latest');
-Isso garante que você sempre receba a versão mais recente publicada no painel, sem precisar alterar o código a cada atualização.
+Caso seja necessário manter uma versão específica por questões de compatibilidade ou controle de release, o uso de uma versão fixa também pode ser apropriado.
 
 # Issue 3: How It Works mostra conteúdo em Português
-Resposta ao Cliente:
-
 Olá,
 
 Encontrei a causa do problema na seção How It Works.
 
 O que está acontecendo:
 
-No componente HowItWorks, você está definindo manualmente a preferência de idioma com preferredLocale: "pt-br". Isso instrui a Croct a sempre entregar o conteúdo em português, ignorando o idioma real do visitante.
+No componente HowItWorks, a propriedade preferredLocale está definida manualmente como pt-br:
 
-Causa raiz:
-
-// Código com problema
-const {content} = useContent('how-it-works-section', {
-  initial: { ... },
-  preferredLocale: "pt-br"  // ← Forçando idioma
+const { content } = useContent('how-it-works-section', {
+  initial: {
+    // ...
+  },
+  preferredLocale: 'pt-br'
 });
+
+Isso faz com que a aplicação solicite preferencialmente o conteúdo em português, independentemente da preferência de idioma do visitante.
+
 Como resolver:
 
-Remova a propriedade preferredLocale para que a Croct detecte automaticamente o idioma do visitante:
+Remova o preferredLocale fixo:
 
-// Código corrigido
-const {content} = useContent('how-it-works-section', {
-  initial: { ... }
+const { content } = useContent('how-it-works-section', {
+  initial: {
+    // ...
+  }
 });
-O que acontece depois:
 
-A Croct usará o cabeçalho Accept-Language do navegador e a localização do visitante para servir o idioma correto. Visitantes dos EUA verão inglês, do Brasil verão português, etc.
+Assim, a aplicação poderá utilizar o mecanismo de localização da Croct para determinar o conteúdo adequado ao visitante.
 
-Nota adicional: Verifiquei também a configuração do workspace e notei que apenas o locale pt-br estava habilitado. Para servir conteúdo em inglês, é necessário habilitar o locale en no painel da Croct (Settings → Localization) e configurar o conteúdo do slot em inglês.
+Além disso, verifiquei que o workspace possui apenas o locale pt-br habilitado. Para disponibilizar uma versão em inglês, é necessário habilitar o locale correspondente e configurar o conteúdo traduzido no painel da Croct.
+
+Dessa forma, visitantes que utilizam inglês poderão receber a versão em inglês, enquanto os demais poderão receber o conteúdo correspondente às configurações de localização disponíveis.
 
 
 # Parte 2: PErguntas
 
 
-Pergunta 1: "Nosso conteúdo personalizado às vezes aparece um segundo depois do resto da página... No primeiro carregamento os visitantes veem a versão genérica. Isso é esperado ou é um bug?"
-Resposta ao Cliente:
+# Pergunta 1: "Nosso conteúdo personalizado às vezes aparece um segundo depois do resto da página... No primeiro carregamento os visitantes veem a versão genérica. Isso é esperado ou é um bug?"
 
-Olá,
 
-Excelente pergunta! Isso é esperado, mas não é o ideal. O que você está vendo é o comportamento padrão de renderização no "Client-Side" (lado do cliente) e é conhecido como "Flash of Default Content" (FoDC).
+Olá, Tudo bem?
 
-Por que isso acontece?
-Quando o HTML da sua página é montado no navegador, o código da aplicação precisa ser baixado, executado e fazer uma chamada de rede para os servidores da Croct para buscar a variante personalizada do usuário. Durante esses milissegundos/segundos de processamento, o código mostra o conteúdo "fallback" (a versão genérica) para evitar que a tela fique em branco. Assim que a Croct responde, ele troca o conteúdo.
+Esse comportamento pode ser esperado quando o conteúdo personalizado é carregado no lado do cliente, mas não é necessariamente o comportamento ideal para a experiência do usuário.
 
-É um bug?
-Não, é uma proteção contra quebras de layout e tempos de carregamento infinitos. Mas, para os seus visitantes, ver essa "piscada" de conteúdo pode parecer falta de profissionalismo.
+Nesse cenário, a página é exibida inicialmente com o conteúdo padrão e, depois que a aplicação é executada no navegador e obtém a resposta da Croct, o conteúdo personalizado substitui o fallback. Isso pode causar o chamado Flash of Default Content (FoDC).
 
-O que fazer a seguir:
-Para resolver isso, você pode implementar Renderização no Servidor (SSR). Isso faz com que o conteúdo personalizado seja buscado antes da página chegar ao navegador, eliminando a 'piscada' e melhorando o SEO. Posso te ajudar a verificar a melhor abordagem para o seu caso.
+Isso não significa necessariamente que exista um bug na integração, mas pode resultar em uma experiência visual indesejada.
 
-Pergunta 4: "Estamos rodando um teste há dois dias, e o dashboard já mostra 90% de chance de que a variante B está ganhando, mas ainda é um número bem pequeno de pessoas. Podemos confiar nesse número ou é muito cedo?"
-Resposta ao Cliente:
+O que fazer:
+
+Uma possível abordagem para evitar esse comportamento é buscar o conteúdo durante a renderização no servidor, quando a arquitetura da aplicação permitir. Isso permite que o conteúdo personalizado já esteja presente na resposta inicial da página, reduzindo ou eliminando essa troca visual após o carregamento.
+
+Também vale avaliar a estratégia de fallback e o tempo de resposta da requisição para identificar se existe alguma oportunidade adicional de otimização.
+
+# Pergunta 4: "Estamos rodando um teste há dois dias, e o dashboard já mostra 90% de chance de que a variante B está ganhando, mas ainda é um número bem pequeno de pessoas. Podemos confiar nesse número ou é muito cedo?"
+
 
 Olá,
 
@@ -196,35 +195,23 @@ Verifique se o teste tem tráfego suficiente — Se o número de visitantes for 
 
 Se quiser, posso te ajudar a analisar o volume de tráfego e estimar quanto tempo o teste precisa para ter resultados confiáveis.
 
-Pergunta 5: "Só traduzimos o banner da campanha para inglês e espanhol, mas agora um visitante do Canadá navegando em francês está vendo a versão em inglês. Não deveria estar em francês?"
-Resposta ao Cliente:
+# Pergunta 5: "Só traduzimos o banner da campanha para inglês e espanhol, mas agora um visitante do Canadá navegando em francês está vendo a versão em inglês. Não deveria estar em francês?"
 
 Olá,
 
-Boa observação! O comportamento está correto, mas vou explicar o porquê.
+Sim, esse comportamento pode ser esperado caso não exista uma versão em francês disponível e o francês esteja configurado para utilizar outro locale como fallback.
 
 O que está acontecendo:
 
-Você traduziu o banner apenas para inglês e espanhol. Não há versão em francês disponível. Quando um visitante do Canadá navega em francês, a Croct procura uma versão em francês do banner. Como não encontra, ela precisa escolher uma alternativa.
+O visitante está navegando em francês, mas o banner possui traduções apenas em inglês e espanhol. Como não existe conteúdo correspondente ao locale francês, a plataforma precisa utilizar uma alternativa disponível de acordo com a configuração de localização e fallback.
 
-Por que mostra em inglês?
+Nesse caso, o visitante pode receber a versão em inglês se esse for o locale configurado como fallback.
 
-A Croct usa uma lógica de "fallback" (plano B):
+O que fazer a seguir:
 
-Primeiro: Tenta encontrar o conteúdo no idioma do visitante (francês)
+Se a intenção é oferecer uma experiência totalmente localizada para visitantes que falam francês, recomendo:
 
-Segundo: Se não encontrar, tenta o idioma padrão do workspace (provavelmente inglês)
+Habilitar o locale francês no workspace; Adicionar a tradução francesa do banner; Verificar as regras de fallback configuradas para os demais idiomas.
 
-Terceiro: Se não houver nenhum, usa o que estiver disponível
-
-Como você só tem inglês e espanhol, e o inglês é provavelmente o idioma padrão do workspace, o visitante canadense vê a versão em inglês.
-
-O que fazer a seguir se você quer atender visitantes que falam francês:
-
-Adicione a tradução em francês no painel da Croct
-
-Ou configure uma regra de fallback diferente (ex: mostrar espanhol para visitantes do Canadá)
-
-Dica: Se você não tem recursos para traduzir para francês agora, pode manter o inglês como fallback. É uma escolha razoável, já que o inglês é amplamente compreendido no Canadá.
-
+Se não houver uma versão francesa disponível, utilizar o inglês como fallback também pode ser uma estratégia válida, desde que isso esteja de acordo com o objetivo da experiência.
 Se quiser, posso te ajudar a configurar as traduções no painel da Croct.
