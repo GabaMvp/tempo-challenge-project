@@ -54,7 +54,7 @@ markdown
 
 ## Part 1: Debugging
 
-Issue 1: Hero Section não exibe conteúdo do slot
+# Issue 1: Hero Section não exibe conteúdo do slot
 
 Resposta ao Cliente:
 
