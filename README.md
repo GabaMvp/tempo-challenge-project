@@ -144,7 +144,7 @@ A Croct usará o cabeçalho Accept-Language do navegador e a localização do vi
 Nota adicional: Verifiquei também a configuração do workspace e notei que apenas o locale pt-br estava habilitado. Para servir conteúdo em inglês, é necessário habilitar o locale en no painel da Croct (Settings → Localization) e configurar o conteúdo do slot em inglês.
 
 
-# Part 2: PErguntas
+# Parte 2: PErguntas
 
 
 Pergunta 1: "Nosso conteúdo personalizado às vezes aparece um segundo depois do resto da página... No primeiro carregamento os visitantes veem a versão genérica. Isso é esperado ou é um bug?"
